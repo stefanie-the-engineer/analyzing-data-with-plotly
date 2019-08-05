@@ -1,3 +1,4 @@
+# import dependiencies
 import os
 
 import pandas as pd
@@ -11,40 +12,44 @@ from sqlalchemy import create_engine
 from flask import Flask, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 
+# initialize the flask app
 app = Flask(__name__)
 
-#################################################
-# Database Setup
-#################################################
-
+# database setup
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db/bellybutton.sqlite"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 # reflect an existing database into a new model
 Base = automap_base()
+
 # reflect the tables
 Base.prepare(db.engine, reflect=True)
 
-# Save references to each table
+# save references to each table
 Samples_Metadata = Base.classes.sample_metadata
 Samples = Base.classes.samples
 
+# home route
 @app.route("/")
 def index():
     """Return the homepage."""
     return render_template("index.html")
 
+# name route
 @app.route("/names")
 def names():
     """Return a list of sample names."""
 
-    # Use Pandas to perform the sql query
+    # use Pandas to perform the sql query
     stmt = db.session.query(Samples).statement
     df = pd.read_sql_query(stmt, db.session.bind)
 
-    # Return a list of the column names (sample names)
+    # return a list of the column names (sample names)
     return jsonify(list(df.columns)[2:])
 
+# metadata route
 @app.route("/metadata/<sample>")
 def sample_metadata(sample):
     """Return the MetaData for a given sample."""
@@ -60,7 +65,7 @@ def sample_metadata(sample):
 
     results = db.session.query(*sel).filter(Samples_Metadata.sample == sample).all()
 
-    # Create a dictionary entry for each row of metadata information
+    # create a dictionary entry for each row of metadata information
     sample_metadata = {}
     for result in results:
         sample_metadata["sample"] = result[0]
@@ -80,14 +85,13 @@ def samples(sample):
     stmt = db.session.query(Samples).statement
     df = pd.read_sql_query(stmt, db.session.bind)
 
-    # Filter the data based on the sample number and
-    # only keep rows with values above 1
+    # filter the data based on the sample number and only keep rows with values above 1
     sample_data = df.loc[df[sample] > 1, ["otu_id", "otu_label", sample]]
 
-    # Sort by sample
+    # sort by sample
     sample_data.sort_values(by=sample, ascending=False, inplace=True)
 
-    # Format the data to send as json
+    # format the data to send as json
     data = {
         "otu_ids": sample_data.otu_id.values.tolist(),
         "sample_values": sample_data[sample].values.tolist(),
@@ -95,5 +99,6 @@ def samples(sample):
     }
     return jsonify(data)
 
+# run app
 if __name__ == "__main__":
     app.run()
