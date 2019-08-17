@@ -1,4 +1,4 @@
-from webapp.app import db.bellybutton
+from dashboard.app import db
 
 # db.drop_all()
 db.create_all()
